@@ -89,7 +89,6 @@ There should be another page that displays all of this information in a neat tab
 
 ## Geocoding / Map Pins
 - Dealership address → map pin via a geocoding step (provider TBD)
-- Deferred — not required for initial implementation
 
 ## Dependencies
 - Runtime dependencies: `requirements.txt`
@@ -97,5 +96,5 @@ There should be another page that displays all of this information in a neat tab
 
 ## Dev Environments
 - **Bare metal / local dev:** Python virtualenv (`venv`), run FastAPI directly
-- **Devcontainer:** `.devcontainer/` config for VS Code, modeled after the tower project
+- **Devcontainer:** `.devcontainer/` config for VS Code,
 - **Production-like local:** `Dockerfile` + `docker-compose.yml` for a fully containerized deployment including Postgres
