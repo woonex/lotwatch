@@ -48,5 +48,42 @@
       </div>
     </form>
   </div>
+
+  {% if car_id and price_history %}
+  <div class="bg-white rounded-xl shadow border border-gray-200 p-5 mt-6">
+    <h2 class="font-semibold text-lg mb-3">Price History</h2>
+    <table class="w-full text-sm">
+      <thead class="text-xs text-gray-500 uppercase border-b border-gray-100">
+        <tr>
+          <th class="text-left pb-2">Date</th>
+          <th class="text-right pb-2">Price</th>
+          <th class="text-right pb-2">Change</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-gray-50">
+        {% for entry in price_history %}
+        <tr>
+          <td class="py-1.5 text-gray-500">{{ entry.observed_at.strftime('%b %d, %Y') }}</td>
+          <td class="py-1.5 text-right font-medium">${{ "{:,}".format(entry.price) }}</td>
+          <td class="py-1.5 text-right">
+            {% if not loop.first %}
+              {% set prev = price_history[loop.index0 - 1] %}
+              {% set diff = entry.price - prev.price %}
+              {% if diff < 0 %}
+              <span class="text-green-600">↓ ${{ "{:,}".format(diff | abs) }}</span>
+              {% elif diff > 0 %}
+              <span class="text-red-400">↑ ${{ "{:,}".format(diff) }}</span>
+              {% endif %}
+            {% else %}
+              <span class="text-gray-300">—</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+
 </div>
 {% endblock %}

@@ -115,9 +115,13 @@
           <td class="px-3 py-2 text-right">
             {% if car.current_price %}
             <div class="font-semibold">${{ "{:,}".format(car.current_price) }}</div>
-            {% set max_price = car.price_history | map(attribute='price') | max if car.price_history | length > 1 else None %}
-            {% if max_price and max_price != car.current_price %}
-            <div class="text-xs text-green-600">↓ was ${{ "{:,}".format(max_price) }}</div>
+            {% if car.price_history | length > 1 %}
+              {% set first_price = car.price_history | sort(attribute='observed_at') | first %}
+              {% if first_price.price > car.current_price %}
+            <div class="text-xs text-green-600">↓ was ${{ "{:,}".format(first_price.price) }}</div>
+              {% elif first_price.price < car.current_price %}
+            <div class="text-xs text-red-400">↑ was ${{ "{:,}".format(first_price.price) }}</div>
+              {% endif %}
             {% endif %}
             {% else %}
             <span class="text-gray-400">—</span>

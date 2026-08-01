@@ -27,7 +27,7 @@ def root():
 
 @router.get("/cars", response_class=HTMLResponse)
 def list_cars(request: Request, db: Session = Depends(get_db)):
-    cars = db.query(Car).order_by(Car.date_first_seen.desc()).all()
+    cars = db.query(Car).filter(Car.is_deleted == False).order_by(Car.date_first_seen.desc()).all()
     sold_count = sum(1 for c in cars if c.possibly_sold)
     today = date.today()
     return templates.TemplateResponse(
@@ -40,7 +40,7 @@ def list_cars(request: Request, db: Session = Depends(get_db)):
 def map_view(request: Request, db: Session = Depends(get_db)):
     import json as _json
 
-    cars = db.query(Car).all()
+    cars = db.query(Car).filter(Car.is_deleted == False).all()
     sold_count = sum(1 for c in cars if c.possibly_sold)
     today = date.today()
 
@@ -194,9 +194,10 @@ def edit_car_form(car_id: int, request: Request, db: Session = Depends(get_db)):
         "notes": car.notes or "",
         "features": features,
     }
+    history = sorted(car.price_history, key=lambda x: x.observed_at)
     return templates.TemplateResponse(
         request, "cars/form.html",
-        {"data": data, "car_id": car_id, "sold_count": 0, "today": date.today()},
+        {"data": data, "car_id": car_id, "sold_count": 0, "today": date.today(), "price_history": history},
     )
 
 
@@ -266,7 +267,8 @@ async def update_car(car_id: int, request: Request, db: Session = Depends(get_db
 def delete_car(car_id: int, db: Session = Depends(get_db)):
     car = db.query(Car).filter(Car.id == car_id).first()
     if car:
-        db.delete(car)
+        car.is_deleted = True
+        car.updated_at = datetime.utcnow()
         db.commit()
     return Response(
         status_code=200,

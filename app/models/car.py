@@ -27,6 +27,7 @@ class Car(Base):
     features: Mapped[dict] = mapped_column(JSONB, default=dict)
     photo_url: Mapped[str | None] = mapped_column(Text, nullable=True)
     possibly_sold: Mapped[bool] = mapped_column(Boolean, default=False)
+    is_deleted: Mapped[bool] = mapped_column(Boolean, default=False)
     vin: Mapped[str | None] = mapped_column(String, nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)

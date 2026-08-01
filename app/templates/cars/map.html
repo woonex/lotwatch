@@ -8,6 +8,8 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/htmx.org@1.9.12" defer></script>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
   <style>
     html, body { height: 100%; margin: 0; }
     #map { height: 100%; }
@@ -108,6 +110,7 @@
     const FEATURES = {{ FEATURES_JSON | safe }};
   </script>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
   <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
   <script>
     function mapApp() {
@@ -119,6 +122,7 @@
         maxPossiblePrice: 0,
         featureFilters: {},
         markers: [],
+        clusterGroup: null,
         map: null,
         visibleCount: 0,
 
@@ -153,15 +157,19 @@
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
               attribution: '&copy; OpenStreetMap contributors'
             }).addTo(this.map);
+            this.clusterGroup = L.markerClusterGroup({ maxClusterRadius: 40 });
+            this.map.addLayer(this.clusterGroup);
             this.updateMarkers();
             this.fitToMarkers();
+            setTimeout(() => this.map.invalidateSize(), 200);
           });
 
           this.$watch('filteredCars', () => this.updateMarkers());
+          this.$watch('filtersOpen', () => this.$nextTick(() => this.map.invalidateSize()));
         },
 
         updateMarkers() {
-          this.markers.forEach(m => m.remove());
+          this.clusterGroup.clearLayers();
           this.markers = [];
           const filtered = this.filteredCars;
           this.visibleCount = filtered.length;
@@ -188,9 +196,8 @@
                 </div>
               </div>`;
 
-            const marker = L.marker([car.lat, car.lng])
-              .bindPopup(popup)
-              .addTo(this.map);
+            const marker = L.marker([car.lat, car.lng]).bindPopup(popup);
+            this.clusterGroup.addLayer(marker);
             this.markers.push(marker);
           });
         },
@@ -206,8 +213,7 @@
             this.map.setView(this.markers[0].getLatLng(), 12);
             return;
           }
-          const group = L.featureGroup(this.markers);
-          this.map.fitBounds(group.getBounds().pad(0.2));
+          this.map.fitBounds(this.clusterGroup.getBounds().pad(0.2));
         }
       };
     }
