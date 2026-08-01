@@ -1,5 +1,4 @@
 from datetime import date, datetime
-from typing import Optional
 
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
@@ -7,33 +6,18 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from app.database import get_db
+from app.features import assemble_features_from_form, FEATURES
 from app.models.car import Car, PriceHistory
 from app.services.geocoder import geocode
 from app.services.refresh import refresh_car
 from app.services.scraper import scrape_url
 
+import json as _json
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
+templates.env.globals["FEATURES"] = FEATURES
+templates.env.globals["FEATURES_JSON"] = _json.dumps(FEATURES)
 
-
-def _assemble_features(
-    drivetrain: Optional[str] = None,
-    drive_type: Optional[str] = None,
-    parking_sensors: Optional[str] = None,
-    camera_360: Optional[str] = None,
-    seat_material: Optional[str] = None,
-    heated_seats: Optional[str] = None,
-    ventilated_seats: Optional[str] = None,
-) -> dict:
-    return {
-        "drivetrain": drivetrain or "",
-        "drive_type": drive_type or "",
-        "parking_sensors": parking_sensors is not None,
-        "camera_360": camera_360 is not None,
-        "seat_material": seat_material or "",
-        "heated_seats": heated_seats is not None,
-        "ventilated_seats": ventilated_seats is not None,
-    }
 
 
 @router.get("/")
@@ -81,9 +65,11 @@ def map_view(request: Request, db: Session = Depends(get_db)):
             for c in cars
         ]
     )
+    unmapped = [c for c in cars if c.lat is None or c.lng is None]
     return templates.TemplateResponse(
         request, "cars/map.html",
-        {"cars_json": cars_json, "sold_count": sold_count, "today": today},
+        {"cars_json": cars_json, "sold_count": sold_count, "today": today,
+         "cars_total": len(cars), "cars_unmapped": unmapped},
     )
 
 
@@ -108,39 +94,27 @@ def parse_url(
 
 
 @router.post("/cars")
-def create_car(
-    request: Request,
-    db: Session = Depends(get_db),
-    source_url: str = Form(...),
-    dealership_name: str = Form(""),
-    dealership_address: str = Form(""),
-    current_price: Optional[str] = Form(None),
-    date_first_seen: Optional[str] = Form(None),
-    year: Optional[str] = Form(None),
-    make: str = Form(""),
-    model: str = Form(""),
-    trim: str = Form(""),
-    mileage: Optional[str] = Form(None),
-    vin: str = Form(""),
-    photo_url: str = Form(""),
-    notes: str = Form(""),
-    drivetrain: Optional[str] = Form(None),
-    drive_type: Optional[str] = Form(None),
-    parking_sensors: Optional[str] = Form(None),
-    camera_360: Optional[str] = Form(None),
-    seat_material: Optional[str] = Form(None),
-    heated_seats: Optional[str] = Form(None),
-    ventilated_seats: Optional[str] = Form(None),
-):
-    features = _assemble_features(
-        drivetrain, drive_type, parking_sensors, camera_360,
-        seat_material, heated_seats, ventilated_seats
-    )
+async def create_car(request: Request, db: Session = Depends(get_db)):
+    form = await request.form()
+    features = assemble_features_from_form(form)
+
+    source_url = form.get('source_url', '')
+    dealership_name = form.get('dealership_name', '')
+    dealership_address = form.get('dealership_address', '')
+    current_price = form.get('current_price', '')
+    date_first_seen = form.get('date_first_seen', '')
+    year = form.get('year', '')
+    make = form.get('make', '')
+    model = form.get('model', '')
+    trim = form.get('trim', '')
+    mileage = form.get('mileage', '')
+    vin = form.get('vin', '')
+    photo_url = form.get('photo_url', '')
+    notes = form.get('notes', '')
 
     price_int = int(current_price) if current_price and current_price.strip() else None
     year_int = int(year) if year and year.strip() else None
     mileage_int = int(mileage) if mileage and mileage.strip() else None
-
     dfs = date.fromisoformat(date_first_seen) if date_first_seen and date_first_seen.strip() else date.today()
 
     car = Car(
@@ -227,33 +201,27 @@ def edit_car_form(car_id: int, request: Request, db: Session = Depends(get_db)):
 
 
 @router.post("/cars/{car_id}")
-def update_car(
-    car_id: int,
-    db: Session = Depends(get_db),
-    source_url: str = Form(...),
-    dealership_name: str = Form(""),
-    dealership_address: str = Form(""),
-    current_price: Optional[str] = Form(None),
-    date_first_seen: Optional[str] = Form(None),
-    year: Optional[str] = Form(None),
-    make: str = Form(""),
-    model: str = Form(""),
-    trim: str = Form(""),
-    mileage: Optional[str] = Form(None),
-    vin: str = Form(""),
-    photo_url: str = Form(""),
-    notes: str = Form(""),
-    drivetrain: Optional[str] = Form(None),
-    drive_type: Optional[str] = Form(None),
-    parking_sensors: Optional[str] = Form(None),
-    camera_360: Optional[str] = Form(None),
-    seat_material: Optional[str] = Form(None),
-    heated_seats: Optional[str] = Form(None),
-    ventilated_seats: Optional[str] = Form(None),
-):
+async def update_car(car_id: int, request: Request, db: Session = Depends(get_db)):
     car = db.query(Car).filter(Car.id == car_id).first()
     if not car:
         return RedirectResponse(url="/cars", status_code=303)
+
+    form = await request.form()
+    features = assemble_features_from_form(form)
+
+    source_url = form.get('source_url', '')
+    dealership_name = form.get('dealership_name', '')
+    dealership_address = form.get('dealership_address', '')
+    current_price = form.get('current_price', '')
+    date_first_seen = form.get('date_first_seen', '')
+    year = form.get('year', '')
+    make = form.get('make', '')
+    model = form.get('model', '')
+    trim = form.get('trim', '')
+    mileage = form.get('mileage', '')
+    vin = form.get('vin', '')
+    photo_url = form.get('photo_url', '')
+    notes = form.get('notes', '')
 
     price_int = int(current_price) if current_price and current_price.strip() else None
     year_int = int(year) if year and year.strip() else None
@@ -263,7 +231,7 @@ def update_car(
     if price_int and price_int != car.current_price:
         db.add(PriceHistory(car_id=car.id, price=price_int))
 
-    address_changed = dealership_address and dealership_address != (car.dealership_address or "")
+    address_changed = bool(dealership_address)
 
     car.source_url = source_url
     car.dealership_name = dealership_name or None
@@ -278,7 +246,7 @@ def update_car(
     car.vin = vin or None
     car.photo_url = photo_url or None
     car.notes = notes or None
-    car.features = _assemble_features(drivetrain, drive_type, parking_sensors, camera_360, seat_material, heated_seats, ventilated_seats)
+    car.features = features
     car.updated_at = datetime.utcnow()
     db.commit()
 

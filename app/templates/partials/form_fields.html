@@ -107,88 +107,36 @@
   <!-- Features -->
   <div class="border-t border-gray-100 pt-4">
     <h3 class="font-semibold text-gray-800 mb-3">Features</h3>
-
-    <!-- Drivetrain -->
-    <div class="mb-3">
-      <div class="text-sm font-medium text-gray-700 mb-2">Drivetrain</div>
-      <div class="flex gap-4">
-        {% set current_dt = data.get('features', {}).get('drivetrain', '') if data.get('features') else data.get('drivetrain', '') %}
-        {% for val, label in [('gas','Gas'),('hybrid','Hybrid'),('phev','PHEV'),('ev','EV')] %}
+    {% set feats = data.get('features', {}) or {} %}
+    {% set ns = namespace(current_group='') %}
+    {% for feat in FEATURES %}
+      {% if feat.group != ns.current_group %}
+        {% if ns.current_group != '' %}</div></div>{% endif %}
+        {% set ns.current_group = feat.group %}
+        <div class="mb-3">
+          <div class="text-sm font-medium text-gray-700 mb-2">{{ feat.group }}</div>
+          <div class="flex gap-4 flex-wrap">
+      {% endif %}
+      {% if feat.type == 'select' %}
+        {% set current_val = feats.get(feat.key, '') %}
+        {% for opt_val, opt_label in feat.options %}
         <label class="flex items-center gap-1.5 text-sm cursor-pointer">
-          <input type="radio" name="drivetrain" value="{{ val }}"
-            {% if current_dt == val %}checked{% endif %}
+          <input type="radio" name="{{ feat.key }}" value="{{ opt_val }}"
+            {% if current_val == opt_val %}checked{% endif %}
             class="text-blue-600" />
-          {{ label }}
+          {{ opt_label }}
         </label>
         {% endfor %}
-      </div>
-    </div>
-
-    <!-- Drive Type -->
-    <div class="mb-3">
-      <div class="text-sm font-medium text-gray-700 mb-2">Drive Type</div>
-      <div class="flex gap-4">
-        {% set current_drive = data.get('features', {}).get('drive_type', '') if data.get('features') else data.get('drive_type', '') %}
-        {% for val, label in [('fwd','FWD'),('rwd','RWD'),('awd','AWD'),('4x4','4x4')] %}
+      {% else %}
         <label class="flex items-center gap-1.5 text-sm cursor-pointer">
-          <input type="radio" name="drive_type" value="{{ val }}"
-            {% if current_drive == val %}checked{% endif %}
-            class="text-blue-600" />
-          {{ label }}
-        </label>
-        {% endfor %}
-      </div>
-    </div>
-
-    <!-- Safety -->
-    <div class="mb-3">
-      <div class="text-sm font-medium text-gray-700 mb-2">Safety</div>
-      <div class="flex gap-4">
-        {% set feats = data.get('features', {}) or {} %}
-        <label class="flex items-center gap-1.5 text-sm cursor-pointer">
-          <input type="checkbox" name="parking_sensors" value="1"
-            {% if feats.get('parking_sensors') %}checked{% endif %}
+          <input type="checkbox" name="{{ feat.key }}" value="1"
+            {% if feats.get(feat.key) %}checked{% endif %}
             class="rounded text-blue-600" />
-          Parking Sensors
+          {{ feat.label }}
         </label>
-        <label class="flex items-center gap-1.5 text-sm cursor-pointer">
-          <input type="checkbox" name="camera_360" value="1"
-            {% if feats.get('camera_360') %}checked{% endif %}
-            class="rounded text-blue-600" />
-          360° Camera
-        </label>
-      </div>
-    </div>
-
-    <!-- Seats -->
-    <div class="mb-3">
-      <div class="text-sm font-medium text-gray-700 mb-2">Seats</div>
-      <div class="flex gap-4 flex-wrap">
-        {% set current_seat = feats.get('seat_material', '') %}
-        {% for val, label in [('cloth','Cloth'),('cloth_leather','Cloth/Leather'),('leather','Leather')] %}
-        <label class="flex items-center gap-1.5 text-sm cursor-pointer">
-          <input type="radio" name="seat_material" value="{{ val }}"
-            {% if current_seat == val %}checked{% endif %}
-            class="text-blue-600" />
-          {{ label }}
-        </label>
-        {% endfor %}
-      </div>
-      <div class="flex gap-4 mt-2">
-        <label class="flex items-center gap-1.5 text-sm cursor-pointer">
-          <input type="checkbox" name="heated_seats" value="1"
-            {% if feats.get('heated_seats') %}checked{% endif %}
-            class="rounded text-blue-600" />
-          Heated Seats
-        </label>
-        <label class="flex items-center gap-1.5 text-sm cursor-pointer">
-          <input type="checkbox" name="ventilated_seats" value="1"
-            {% if feats.get('ventilated_seats') %}checked{% endif %}
-            class="rounded text-blue-600" />
-          Ventilated Seats
-        </label>
-      </div>
-    </div>
+      {% endif %}
+    {% endfor %}
+    {% if ns.current_group != '' %}</div></div>{% endif %}
   </div>
 
   <div class="pt-2">

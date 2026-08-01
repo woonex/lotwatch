@@ -55,4 +55,9 @@ app = FastAPI(title="LotWatch", lifespan=lifespan)
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 templates = Jinja2Templates(directory="app/templates")
 
+import json as _json
+from app.features import FEATURES
+templates.env.globals["FEATURES"] = FEATURES
+templates.env.globals["FEATURES_JSON"] = _json.dumps(FEATURES)
+
 app.include_router(cars_router)
