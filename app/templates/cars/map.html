@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LotWatch – Map</title>
+  <link rel="icon" type="image/png" href="/static/favicon.png" />
+  <script>
+    if (localStorage.getItem('theme') === 'dark' ||
+        (!localStorage.getItem('theme') && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+      document.documentElement.classList.add('dark');
+    }
+  </script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>tailwind.config = { darkMode: 'class' };</script>
+  <script src="https://unpkg.com/htmx.org@1.9.12" defer></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+  <style>
+    html, body { height: 100%; margin: 0; }
+    #map { height: 100%; }
+  </style>
+</head>
+<body class="bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 flex flex-col" style="height:100vh;">
+
+  <!-- Possibly-sold banner -->
+  {% if sold_count and sold_count > 0 %}
+  <div class="bg-yellow-100 dark:bg-yellow-900 border-b border-yellow-300 dark:border-yellow-700 text-yellow-800 dark:text-yellow-200 px-4 py-2 text-sm text-center flex-shrink-0">
+    ⚠ {{ sold_count }} car{% if sold_count != 1 %}s{% endif %} may have been sold. Check the <a href="/cars" class="underline">table</a> and dismiss any false alarms.
+  </div>
+  {% endif %}
+
+  <!-- Nav -->
+  <nav class="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
+    <div class="max-w-7xl mx-auto px-4 flex items-center h-14 gap-6">
+      <a href="/cars" class="text-xl font-bold text-blue-700 dark:text-blue-400 tracking-tight">LotWatch</a>
+      <div class="flex gap-4 items-center ml-4">
+        <a href="/cars" class="text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 font-medium">Table</a>
+        <a href="/map" class="text-blue-600 dark:text-blue-400 font-medium">Map</a>
+      </div>
+      <div class="ml-auto flex items-center gap-3">
+        <button id="theme-toggle" onclick="toggleTheme()"
+          class="p-2 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+          title="Toggle dark mode">
+          <span id="theme-icon">🌙</span>
+        </button>
+        <a href="/cars/new" class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2 rounded-lg">
+          + Add Car
+        </a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Body: filters top + map -->
+  <div x-data="mapApp()" class="flex flex-col flex-1 overflow-hidden">
+
+    <!-- Filter bar -->
+    <div class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
+      <!-- Toggle row -->
+      <div class="flex items-center justify-between px-4 py-2">
+        <button @click="filtersOpen = !filtersOpen"
+          class="flex items-center gap-2 text-sm font-semibold text-gray-700 dark:text-gray-200 hover:text-blue-600 dark:hover:text-blue-400">
+          <span x-text="filtersOpen ? '▲ Hide Filters' : '▼ Filters'"></span>
+        </button>
+        <span class="text-xs text-gray-400 dark:text-gray-500">
+          <span x-text="visibleCount"></span> of {{ cars_total }} shown
+          {% if cars_unmapped %}
+          · <span class="text-orange-500">{{ cars_unmapped|length }} missing location
+            {% for car in cars_unmapped %}
+            — <a href="/cars/{{ car.id }}/edit" class="underline">{{ car.year }} {{ car.make }} {{ car.model }}</a>
+            {% endfor %}
+          </span>
+          {% endif %}
+        </span>
+      </div>
+
+      <!-- Expandable filters -->
+      <div x-show="filtersOpen" x-transition class="px-4 pb-3 flex flex-wrap gap-4 items-end border-t border-gray-100 dark:border-gray-700 pt-3">
+
+        <!-- Price -->
+        <div class="flex items-center gap-2">
+          <label class="text-xs font-semibold text-gray-500 dark:text-gray-400 whitespace-nowrap">Max Price</label>
+          <input type="range" x-model="maxPrice" :min="minPossiblePrice" :max="maxPossiblePrice" step="500" class="w-32" />
+          <span class="text-xs text-gray-600 dark:text-gray-300 whitespace-nowrap">$<span x-text="Number(maxPrice).toLocaleString()"></span></span>
+        </div>
+
+        <!-- Select features -->
+        {% for feat in FEATURES %}{% if feat.type == 'select' %}
+        <div class="flex items-center gap-1.5">
+          <label class="text-xs font-semibold text-gray-500 dark:text-gray-400 whitespace-nowrap">{{ feat.label }}</label>
+          <select x-model="featureFilters['{{ feat.key }}']"
+            class="border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <option value="">Any</option>
+            {% for opt_val, opt_label in feat.options %}
+            <option value="{{ opt_val }}">{{ opt_label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        {% endif %}{% endfor %}
+
+        <!-- Boolean features -->
+        <div class="flex flex-wrap gap-3">
+          {% for feat in FEATURES %}{% if feat.type == 'boolean' %}
+          <label class="flex items-center gap-1 text-xs cursor-pointer whitespace-nowrap">
+            <input type="checkbox" x-model="featureFilters['{{ feat.key }}']" class="rounded" />
+            {{ feat.label }}
+          </label>
+          {% endif %}{% endfor %}
+        </div>
+
+        <button @click="resetFilters()" class="text-xs text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 underline self-center">Reset</button>
+      </div>
+    </div>
+
+    <!-- Map -->
+    <div id="map" class="flex-1"></div>
+  </div>
+
+  <script>
+    const CAR_DATA = {{ cars_json | safe }};
+    const FEATURES = {{ FEATURES_JSON | safe }};
+  </script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+  <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+  <script>
+    function toggleTheme() {
+      const isDark = document.documentElement.classList.toggle('dark');
+      localStorage.setItem('theme', isDark ? 'dark' : 'light');
+      document.getElementById('theme-icon').textContent = isDark ? '☀️' : '🌙';
+    }
+    document.getElementById('theme-icon').textContent =
+      document.documentElement.classList.contains('dark') ? '☀️' : '🌙';
+  </script>
+  <script>
+    function mapApp() {
+      return {
+        cars: CAR_DATA,
+        filtersOpen: false,
+        maxPrice: 0,
+        minPossiblePrice: 0,
+        maxPossiblePrice: 0,
+        featureFilters: {},
+        markers: [],
+        clusterGroup: null,
+        map: null,
+        visibleCount: 0,
+
+        get filteredCars() {
+          return this.cars.filter(c => {
+            if (c.lat == null || c.lng == null) return false;
+            if (c.current_price && Number(c.current_price) > Number(this.maxPrice)) return false;
+            for (const feat of FEATURES) {
+              const filterVal = this.featureFilters[feat.key];
+              if (feat.type === 'boolean') {
+                if (filterVal && !(c.features && c.features[feat.key])) return false;
+              } else {
+                if (filterVal && (c.features || {})[feat.key] !== filterVal) return false;
+              }
+            }
+            return true;
+          });
+        },
+
+        init() {
+          FEATURES.forEach(f => {
+            this.featureFilters[f.key] = f.type === 'boolean' ? false : '';
+          });
+
+          const prices = this.cars.map(c => c.current_price).filter(Boolean);
+          this.minPossiblePrice = prices.length ? Math.min(...prices) : 0;
+          this.maxPossiblePrice = prices.length ? Math.max(...prices) : 200000;
+          this.maxPrice = this.maxPossiblePrice;
+
+          this.$nextTick(() => {
+            this.map = L.map('map').setView([39.5, -98.35], 4);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+              attribution: '&copy; OpenStreetMap contributors'
+            }).addTo(this.map);
+            this.clusterGroup = L.markerClusterGroup({ maxClusterRadius: 40 });
+            this.map.addLayer(this.clusterGroup);
+            this.updateMarkers();
+            this.fitToMarkers();
+            setTimeout(() => this.map.invalidateSize(), 200);
+          });
+
+          this.$watch('filteredCars', () => this.updateMarkers());
+          this.$watch('filtersOpen', () => this.$nextTick(() => this.map.invalidateSize()));
+        },
+
+        updateMarkers() {
+          this.clusterGroup.clearLayers();
+          this.markers = [];
+          const filtered = this.filteredCars;
+          this.visibleCount = filtered.length;
+
+          filtered.forEach(car => {
+            const daysOnLot = Math.floor((Date.now() - new Date(car.date_first_seen)) / 86400000);
+            const wasPrice = car.max_price && car.max_price !== car.current_price
+              ? `<div style="font-size:11px;color:#9ca3af">was $${Number(car.max_price).toLocaleString()}</div>`
+              : '';
+            const photo = car.photo_url
+              ? `<img src="${car.photo_url}" style="width:100%;height:80px;object-fit:cover;border-radius:4px;margin-bottom:6px" />`
+              : '';
+            const popup = `
+              <div style="min-width:180px;font-family:sans-serif">
+                ${photo}
+                <div style="font-weight:600">${car.year || ''} ${car.make || ''} ${car.model || ''}</div>
+                ${car.trim ? `<div style="font-size:11px;color:#6b7280">${car.trim}</div>` : ''}
+                <div style="margin-top:4px;font-weight:700;color:#1d4ed8">$${car.current_price ? Number(car.current_price).toLocaleString() : '—'}</div>
+                ${wasPrice}
+                <div style="font-size:11px;color:#6b7280;margin-top:4px">${daysOnLot} days on lot</div>
+                <div style="margin-top:8px;display:flex;gap:8px">
+                  <a href="/cars/${car.id}/edit" style="font-size:12px;color:#2563eb;text-decoration:none;font-weight:600">Edit</a>
+                  ${car.source_url ? `<a href="${car.source_url}" target="_blank" style="font-size:12px;color:#6b7280;text-decoration:none">Dealer Site ↗</a>` : ''}
+                </div>
+              </div>`;
+
+            const marker = L.marker([car.lat, car.lng]).bindPopup(popup);
+            this.clusterGroup.addLayer(marker);
+            this.markers.push(marker);
+          });
+        },
+
+        resetFilters() {
+          FEATURES.forEach(f => { this.featureFilters[f.key] = f.type === 'boolean' ? false : ''; });
+          this.maxPrice = this.maxPossiblePrice;
+        },
+
+        fitToMarkers() {
+          if (this.markers.length === 0) return;
+          if (this.markers.length === 1) {
+            this.map.setView(this.markers[0].getLatLng(), 12);
+            return;
+          }
+          this.map.fitBounds(this.clusterGroup.getBounds().pad(0.2));
+        }
+      };
+    }
+  </script>
+
+</body>
+</html>

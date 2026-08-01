@@ -1,0 +1,12 @@
+fastapi[standard]
+uvicorn[standard]
+jinja2
+python-multipart
+sqlalchemy
+alembic
+psycopg[binary]
+playwright
+playwright-stealth
+apscheduler
+httpx
+beautifulsoup4
