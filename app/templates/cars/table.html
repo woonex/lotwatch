@@ -1,0 +1,269 @@
+{% extends "base.html" %}
+{% block content %}
+<div x-data="tableFilter()" x-init="init()">
+
+  <div class="flex items-center justify-between mb-4">
+    <h1 class="text-2xl font-bold">Tracked Cars</h1>
+    <a href="/cars/new" class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2 rounded-lg">+ Add Car</a>
+  </div>
+
+  {% if cars %}
+
+  <!-- Filters -->
+  <div class="bg-white rounded-xl shadow border border-gray-200 p-4 mb-4 flex flex-wrap gap-4 items-end">
+
+    <div>
+      <label class="block text-xs font-semibold text-gray-500 mb-1">Search</label>
+      <input type="text" x-model="search" placeholder="Make, model, dealer…"
+        class="border border-gray-300 rounded-lg px-3 py-1.5 text-sm w-48 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+    </div>
+
+    <div>
+      <label class="block text-xs font-semibold text-gray-500 mb-1">Max Price</label>
+      <input type="number" x-model.number="maxPrice" placeholder="Any"
+        class="border border-gray-300 rounded-lg px-3 py-1.5 text-sm w-28 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+    </div>
+
+    <div>
+      <label class="block text-xs font-semibold text-gray-500 mb-1">Drivetrain</label>
+      <select x-model="drivetrain" class="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+        <option value="">Any</option>
+        <option value="gas">Gas</option>
+        <option value="hybrid">Hybrid</option>
+        <option value="phev">PHEV</option>
+        <option value="ev">EV</option>
+      </select>
+    </div>
+
+    <div>
+      <label class="block text-xs font-semibold text-gray-500 mb-1">Drive Type</label>
+      <select x-model="driveType" class="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+        <option value="">Any</option>
+        <option value="fwd">FWD</option>
+        <option value="rwd">RWD</option>
+        <option value="awd">AWD</option>
+        <option value="4x4">4x4</option>
+      </select>
+    </div>
+
+    <div class="flex items-end gap-3">
+      <label class="flex items-center gap-1.5 text-sm cursor-pointer">
+        <input type="checkbox" x-model="hideActive" class="rounded text-blue-600" />
+        <span class="text-gray-600">Hide active</span>
+      </label>
+      <label class="flex items-center gap-1.5 text-sm cursor-pointer">
+        <input type="checkbox" x-model="onlyPossibleSold" class="rounded text-yellow-600" />
+        <span class="text-gray-600">Possibly sold only</span>
+      </label>
+    </div>
+
+    <button @click="reset()" class="text-xs text-gray-500 hover:text-gray-700 underline self-end pb-1">Reset</button>
+    <span class="text-xs text-gray-400 self-end pb-1" x-text="visibleCount + ' of {{ cars|length }}'"></span>
+  </div>
+
+  <div class="overflow-x-auto bg-white rounded-xl shadow border border-gray-200">
+    <table class="min-w-full text-sm">
+      <thead class="bg-gray-100 text-gray-600 uppercase text-xs">
+        <tr>
+          <th class="px-3 py-3 text-left">Photo</th>
+          <th class="px-3 py-3 text-left cursor-pointer select-none" @click="sort('vehicle')">
+            Vehicle <span x-text="sortIcon('vehicle')"></span>
+          </th>
+          <th class="px-3 py-3 text-right cursor-pointer select-none" @click="sort('price')">
+            Price <span x-text="sortIcon('price')"></span>
+          </th>
+          <th class="px-3 py-3 text-right cursor-pointer select-none" @click="sort('mileage')">
+            Mileage <span x-text="sortIcon('mileage')"></span>
+          </th>
+          <th class="px-3 py-3 text-right cursor-pointer select-none" @click="sort('days')">
+            Days on Lot <span x-text="sortIcon('days')"></span>
+          </th>
+          <th class="px-3 py-3 text-left">Dealership</th>
+          <th class="px-3 py-3 text-left">Status</th>
+          <th class="px-3 py-3 text-left">Actions</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-gray-100">
+        {% for car in cars %}
+        <tr class="hover:bg-gray-50"
+          data-index="{{ loop.index0 }}"
+          data-make="{{ car.make or '' }}"
+          data-model="{{ car.model or '' }}"
+          data-dealer="{{ car.dealership_name or '' }}"
+          data-price="{{ car.current_price or 0 }}"
+          data-mileage="{{ car.mileage or 0 }}"
+          data-days="{{ (today - car.date_first_seen).days }}"
+          data-drivetrain="{{ (car.features or {}).get('drivetrain', '') }}"
+          data-drivetype="{{ (car.features or {}).get('drive_type', '') }}"
+          data-sold="{{ 'true' if car.possibly_sold else 'false' }}"
+        >
+          <td class="px-3 py-2">
+            {% if car.photo_url %}
+            <img src="{{ car.photo_url }}" alt="car photo" class="w-16 h-11 object-cover rounded" />
+            {% else %}
+            <div class="w-16 h-11 bg-gray-200 rounded flex items-center justify-center text-gray-400 text-xs">No img</div>
+            {% endif %}
+          </td>
+
+          <td class="px-3 py-2">
+            <a href="{{ car.source_url }}" target="_blank" class="font-semibold text-blue-700 hover:underline">
+              {{ car.year or '' }} {{ car.make or '' }} {{ car.model or '' }}
+            </a>
+            {% if car.trim %}<div class="text-gray-500 text-xs">{{ car.trim }}</div>{% endif %}
+            {% if car.vin %}<div class="text-gray-400 text-xs font-mono">{{ car.vin }}</div>{% endif %}
+          </td>
+
+          <td class="px-3 py-2 text-right">
+            {% if car.current_price %}
+            <div class="font-semibold">${{ "{:,}".format(car.current_price) }}</div>
+            {% set max_price = car.price_history | map(attribute='price') | max if car.price_history | length > 1 else None %}
+            {% if max_price and max_price != car.current_price %}
+            <div class="text-xs text-green-600">↓ was ${{ "{:,}".format(max_price) }}</div>
+            {% endif %}
+            {% else %}
+            <span class="text-gray-400">—</span>
+            {% endif %}
+          </td>
+
+          <td class="px-3 py-2 text-right">
+            {% if car.mileage %}{{ "{:,}".format(car.mileage) }}{% else %}<span class="text-gray-400">—</span>{% endif %}
+          </td>
+
+          <td class="px-3 py-2 text-right">
+            {{ (today - car.date_first_seen).days }} days
+          </td>
+
+          <td class="px-3 py-2">
+            {% if car.dealership_name %}<div>{{ car.dealership_name }}</div>{% endif %}
+            {% if car.dealership_address %}<div class="text-gray-500 text-xs">{{ car.dealership_address }}</div>{% endif %}
+          </td>
+
+          <td class="px-3 py-2">
+            {% if car.possibly_sold %}
+            <span class="bg-yellow-100 text-yellow-800 text-xs font-semibold px-2 py-1 rounded-full">Possibly Sold</span>
+            {% else %}
+            <span class="bg-green-100 text-green-700 text-xs font-semibold px-2 py-1 rounded-full">Active</span>
+            {% endif %}
+          </td>
+
+          <td class="px-3 py-2">
+            <div class="flex gap-2 items-center flex-wrap">
+              <a href="/cars/{{ car.id }}/edit"
+                class="text-xs bg-blue-50 hover:bg-blue-100 text-blue-700 px-3 py-1 rounded">Edit</a>
+              <form method="POST" action="/cars/{{ car.id }}/refresh">
+                <button type="submit" class="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1 rounded">Refresh</button>
+              </form>
+              {% if car.possibly_sold %}
+              <form method="POST" action="/cars/{{ car.id }}/sold">
+                <button type="submit" class="text-xs bg-yellow-100 hover:bg-yellow-200 text-yellow-800 px-3 py-1 rounded">Dismiss</button>
+              </form>
+              {% endif %}
+              <button
+                hx-delete="/cars/{{ car.id }}"
+                hx-confirm="Delete this car from LotWatch?"
+                class="text-xs bg-red-50 hover:bg-red-100 text-red-600 px-3 py-1 rounded">Delete</button>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% else %}
+  <div class="text-center text-gray-500 py-20">
+    <p class="text-lg mb-4">No cars tracked yet.</p>
+    <a href="/cars/new" class="bg-blue-600 text-white px-6 py-2 rounded-lg font-semibold">Add your first car</a>
+  </div>
+  {% endif %}
+
+</div>
+
+<script>
+window.tableFilter = function tableFilter() {
+  return {
+    search: '',
+    maxPrice: null,
+    drivetrain: '',
+    driveType: '',
+    hideActive: false,
+    onlyPossibleSold: false,
+    sortKey: 'days',
+    sortDir: 1,
+    rows: [],
+    visibleCount: 0,
+
+    init() {
+      this.rows = Array.from(document.querySelectorAll('tbody tr')).map(tr => ({
+        el: tr,
+        index: parseInt(tr.dataset.index),
+        make: tr.dataset.make.toLowerCase(),
+        model: tr.dataset.model.toLowerCase(),
+        dealer: tr.dataset.dealer.toLowerCase(),
+        price: parseInt(tr.dataset.price) || 0,
+        mileage: parseInt(tr.dataset.mileage) || 0,
+        days: parseInt(tr.dataset.days) || 0,
+        drivetrain: tr.dataset.drivetrain,
+        drivetype: tr.dataset.drivetype,
+        sold: tr.dataset.sold === 'true',
+      }));
+      this.updateVisible();
+      ['search','maxPrice','drivetrain','driveType','hideActive','onlyPossibleSold','sortKey','sortDir'].forEach(k => {
+        this.$watch(k, () => this.updateVisible());
+      });
+    },
+
+    matches(row) {
+      if (this.search) {
+        const q = this.search.toLowerCase();
+        if (!row.make.includes(q) && !row.model.includes(q) && !row.dealer.includes(q)) return false;
+      }
+      if (this.maxPrice && row.price > this.maxPrice) return false;
+      if (this.drivetrain && row.drivetrain !== this.drivetrain) return false;
+      if (this.driveType && row.drivetype !== this.driveType) return false;
+      if (this.hideActive && !row.sold) return false;
+      if (this.onlyPossibleSold && !row.sold) return false;
+      return true;
+    },
+
+    updateVisible() {
+      const tbody = document.querySelector('tbody');
+      const sorted = [...this.rows].sort((a, b) => {
+        const av = a[this.sortKey], bv = b[this.sortKey];
+        if (typeof av === 'string') return this.sortDir * av.localeCompare(bv);
+        return this.sortDir * (av - bv);
+      });
+      let count = 0;
+      sorted.forEach(row => {
+        const show = this.matches(row);
+        row.el.style.display = show ? '' : 'none';
+        if (show) { tbody.appendChild(row.el); count++; }
+      });
+      this.visibleCount = count;
+    },
+
+    sort(key) {
+      if (this.sortKey === key) this.sortDir *= -1;
+      else { this.sortKey = key; this.sortDir = 1; }
+      this.updateVisible();
+    },
+
+    sortIcon(key) {
+      if (this.sortKey !== key) return '↕';
+      return this.sortDir === 1 ? '↑' : '↓';
+    },
+
+    reset() {
+      this.search = '';
+      this.maxPrice = null;
+      this.drivetrain = '';
+      this.driveType = '';
+      this.hideActive = false;
+      this.onlyPossibleSold = false;
+      this.updateVisible();
+    },
+  }
+}
+</script>
+
+{% endblock %}

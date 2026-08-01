@@ -1,0 +1,29 @@
+services:
+  web:
+    build: .
+    ports:
+      - "4925:4925"
+    environment:
+      DATABASE_URL: postgresql+psycopg://lotwatch:lotwatch@db:5432/lotwatch
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: lotwatch
+      POSTGRES_PASSWORD: lotwatch
+      POSTGRES_DB: lotwatch
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lotwatch"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  postgres_data:

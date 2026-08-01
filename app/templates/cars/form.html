@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="max-w-2xl mx-auto">
+  <h1 class="text-2xl font-bold mb-6">{% if car_id %}Edit Car{% else %}Add New Car{% endif %}</h1>
+
+  <!-- URL Parser Section -->
+  {% if not car_id %}
+  <div class="bg-white rounded-xl shadow border border-gray-200 p-5 mb-6">
+    <h2 class="font-semibold text-lg mb-3">Parse from URL</h2>
+    <div class="flex gap-2">
+      <input
+        type="url"
+        name="url"
+        id="parse-url-input"
+        placeholder="https://www.cargurus.com/Cars/..."
+        class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+        hx-post="/cars/parse-url"
+        hx-target="#form-fields"
+        hx-swap="innerHTML"
+        hx-trigger="keydown[key=='Enter']"
+        hx-include="#parse-url-input"
+      />
+      <button
+        type="button"
+        hx-post="/cars/parse-url"
+        hx-target="#form-fields"
+        hx-swap="innerHTML"
+        hx-include="#parse-url-input"
+        class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2 rounded-lg"
+      >
+        Parse URL
+      </button>
+    </div>
+    <div id="parse-loading" class="htmx-indicator text-sm text-gray-500 mt-2">Fetching listing...</div>
+  </div>
+  {% endif %}
+
+  <!-- Form Fields Section -->
+  <div class="bg-white rounded-xl shadow border border-gray-200 p-5">
+    {% if car_id %}
+    <div class="flex justify-end mb-4">
+      <a href="/cars" class="text-sm text-gray-500 hover:text-gray-700 px-4 py-2 rounded-lg border border-gray-300 hover:bg-gray-50">Cancel</a>
+    </div>
+    {% endif %}
+    <form method="POST" action="{% if car_id %}/cars/{{ car_id }}{% else %}/cars{% endif %}">
+      <div id="form-fields">
+        {% include "partials/form_fields.html" %}
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
