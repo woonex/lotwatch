@@ -15,12 +15,13 @@ def refresh_car(db: Session, car: Car) -> None:
         car.possibly_sold = True
         car.updated_at = datetime.utcnow()
         db.commit()
-        return
+        return True
 
     new_price = result.get("current_price")
-    if new_price is not None and new_price != car.current_price:
+    if new_price and new_price != car.current_price:
         db.add(PriceHistory(car_id=car.id, price=new_price))
         car.current_price = new_price
 
     car.updated_at = datetime.utcnow()
     db.commit()
+    return True

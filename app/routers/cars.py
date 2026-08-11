@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
@@ -7,16 +7,18 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.features import assemble_features_from_form, FEATURES
-from app.models.car import Car, PriceHistory
+from app.models.car import Car, PriceHistory, RefreshLog
 from app.services.geocoder import geocode
 from app.services.refresh import refresh_car
 from app.services.scraper import scrape_url
 
 import json as _json
+from datetime import timezone as _tz
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
 templates.env.globals["FEATURES"] = FEATURES
 templates.env.globals["FEATURES_JSON"] = _json.dumps(FEATURES)
+templates.env.filters["localtime"] = lambda dt: dt.replace(tzinfo=_tz.utc).astimezone(tz=None) if dt else ""
 
 
 
@@ -30,9 +32,16 @@ def list_cars(request: Request, db: Session = Depends(get_db)):
     cars = db.query(Car).filter(Car.is_deleted == False).order_by(Car.date_first_seen.desc()).all()
     sold_count = sum(1 for c in cars if c.possibly_sold)
     today = date.today()
+    seven_days_ago = datetime.utcnow() - timedelta(days=7)
+    refresh_logs = (
+        db.query(RefreshLog)
+        .filter(RefreshLog.ran_at >= seven_days_ago)
+        .order_by(RefreshLog.ran_at.desc())
+        .all()
+    )
     return templates.TemplateResponse(
         request, "cars/table.html",
-        {"cars": cars, "today": today, "sold_count": sold_count},
+        {"cars": cars, "today": today, "sold_count": sold_count, "refresh_logs": refresh_logs},
     )
 
 
@@ -158,7 +167,10 @@ async def create_car(request: Request, db: Session = Depends(get_db)):
 def refresh_car_route(car_id: int, db: Session = Depends(get_db)):
     car = db.query(Car).filter(Car.id == car_id).first()
     if car:
-        refresh_car(db, car)
+        success = refresh_car(db, car)
+        log = RefreshLog(car_id=car.id, cars_attempted=1, cars_succeeded=1 if success else 0, cars_failed=0 if success else 1)
+        db.add(log)
+        db.commit()
     return RedirectResponse(url="/cars", status_code=303)
 
 
@@ -195,9 +207,16 @@ def edit_car_form(car_id: int, request: Request, db: Session = Depends(get_db)):
         "features": features,
     }
     history = sorted(car.price_history, key=lambda x: x.observed_at)
+    car_refresh_logs = (
+        db.query(RefreshLog)
+        .filter(RefreshLog.car_id == car_id)
+        .order_by(RefreshLog.ran_at.desc())
+        .limit(20)
+        .all()
+    )
     return templates.TemplateResponse(
         request, "cars/form.html",
-        {"data": data, "car_id": car_id, "sold_count": 0, "today": date.today(), "price_history": history},
+        {"data": data, "car_id": car_id, "sold_count": 0, "today": date.today(), "price_history": history, "car_refresh_logs": car_refresh_logs},
     )
 
 
