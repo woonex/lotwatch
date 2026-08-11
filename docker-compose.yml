@@ -5,6 +5,7 @@ services:
       - "4925:4925"
     environment:
       DATABASE_URL: postgresql+psycopg://lotwatch:lotwatch@db:5432/lotwatch
+      TZ: America/Chicago
     depends_on:
       db:
         condition: service_healthy

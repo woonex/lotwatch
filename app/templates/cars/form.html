@@ -35,6 +35,13 @@
   </div>
   {% endif %}
 
+  {% if dup_car_id %}
+  <div class="flex items-center gap-3 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-700 text-red-800 dark:text-red-300 rounded-lg px-4 py-3 text-sm mb-4">
+    <span class="text-base">✕</span>
+    <span><strong>Duplicate VIN.</strong> <a href="/cars/{{ dup_car_id }}/edit" class="underline font-semibold">{{ dup_label }}</a> is already being tracked with this VIN.</span>
+  </div>
+  {% endif %}
+
   <!-- Form Fields Section -->
   <div class="bg-white dark:bg-gray-800 rounded-xl shadow border border-gray-200 dark:border-gray-700 p-5">
     {% if car_id %}
@@ -82,6 +89,38 @@
         {% endfor %}
       </tbody>
     </table>
+  </div>
+  {% endif %}
+
+  {% if car_id %}
+  <div class="bg-white dark:bg-gray-800 rounded-xl shadow border border-gray-200 dark:border-gray-700 p-5 mt-6">
+    <h2 class="font-semibold text-lg dark:text-gray-100 mb-3">Refresh History</h2>
+    {% if car_refresh_logs %}
+    <table class="w-full text-sm">
+      <thead class="text-xs text-gray-500 dark:text-gray-400 uppercase border-b border-gray-100 dark:border-gray-700">
+        <tr>
+          <th class="text-left pb-2">Date &amp; Time</th>
+          <th class="text-right pb-2">Result</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-gray-50 dark:divide-gray-700">
+        {% for log in car_refresh_logs %}
+        <tr>
+          <td class="py-1.5 text-gray-500 dark:text-gray-400">{{ (log.ran_at|localtime).strftime('%b %d, %Y %H:%M') }}</td>
+          <td class="py-1.5 text-right">
+            {% if log.cars_failed == 0 %}
+            <span class="inline-flex items-center gap-1 text-green-600 dark:text-green-400 font-medium"><span class="w-2 h-2 rounded-full bg-green-500 inline-block"></span> OK</span>
+            {% else %}
+            <span class="inline-flex items-center gap-1 text-red-500 dark:text-red-400 font-medium"><span class="w-2 h-2 rounded-full bg-red-500 inline-block"></span> Failed</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="text-sm text-gray-400 dark:text-gray-500">No manual refreshes recorded yet. Use the Refresh button on the car list to populate this.</p>
+    {% endif %}
   </div>
   {% endif %}
 

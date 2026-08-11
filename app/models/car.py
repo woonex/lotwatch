@@ -51,3 +51,14 @@ class PriceHistory(Base):
     observed_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     car: Mapped["Car"] = relationship("Car", back_populates="price_history")
+
+
+class RefreshLog(Base):
+    __tablename__ = "refresh_log"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    ran_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+    car_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("cars.id", ondelete="SET NULL"), nullable=True)
+    cars_attempted: Mapped[int] = mapped_column(Integer, default=0)
+    cars_succeeded: Mapped[int] = mapped_column(Integer, default=0)
+    cars_failed: Mapped[int] = mapped_column(Integer, default=0)
