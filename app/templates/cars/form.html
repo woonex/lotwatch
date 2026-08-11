@@ -35,6 +35,13 @@
   </div>
   {% endif %}
 
+  {% if dup_car_id %}
+  <div class="flex items-center gap-3 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-700 text-red-800 dark:text-red-300 rounded-lg px-4 py-3 text-sm mb-4">
+    <span class="text-base">✕</span>
+    <span><strong>Duplicate VIN.</strong> <a href="/cars/{{ dup_car_id }}/edit" class="underline font-semibold">{{ dup_label }}</a> is already being tracked with this VIN.</span>
+  </div>
+  {% endif %}
+
   <!-- Form Fields Section -->
   <div class="bg-white dark:bg-gray-800 rounded-xl shadow border border-gray-200 dark:border-gray-700 p-5">
     {% if car_id %}

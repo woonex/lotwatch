@@ -131,6 +131,19 @@ async def create_car(request: Request, db: Session = Depends(get_db)):
     mileage_int = int(mileage) if mileage and mileage.strip() else None
     dfs = date.fromisoformat(date_first_seen) if date_first_seen and date_first_seen.strip() else date.today()
 
+    if vin and vin.strip():
+        existing = db.query(Car).filter(Car.vin == vin.strip(), Car.is_deleted == False).first()
+        if existing:
+            data = {k: form.get(k, '') for k in ("source_url","dealership_name","dealership_address","current_price","date_first_seen","year","make","model","trim","mileage","vin","photo_url","notes")}
+            data["features"] = features
+            return templates.TemplateResponse(
+                request, "cars/form.html",
+                {"data": data, "car_id": None, "sold_count": 0, "today": date.today(), "price_history": [],
+                 "car_refresh_logs": [], "dup_car_id": existing.id,
+                 "dup_label": f"{existing.year or ''} {existing.make or ''} {existing.model or ''}".strip()},
+                status_code=422,
+            )
+
     car = Car(
         source_url=source_url,
         dealership_name=dealership_name or None,

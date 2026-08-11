@@ -118,6 +118,7 @@
           data-price="{{ car.current_price or 0 }}"
           data-mileage="{{ car.mileage or 0 }}"
           data-days="{{ (today - car.date_first_seen).days }}"
+          data-vin="{{ car.vin or '' }}"
           data-sold="{{ 'true' if car.possibly_sold else 'false' }}"
           data-features='{{ (car.features or {})|tojson }}'
         >
@@ -231,6 +232,7 @@ window.tableFilter = function tableFilter() {
         model: tr.dataset.model.toLowerCase(),
         trim: tr.dataset.trim.toLowerCase(),
         dealer: tr.dataset.dealer.toLowerCase(),
+        vin: tr.dataset.vin.toLowerCase(),
         price: parseInt(tr.dataset.price) || 0,
         mileage: parseInt(tr.dataset.mileage) || 0,
         days: parseInt(tr.dataset.days) || 0,
@@ -250,7 +252,7 @@ window.tableFilter = function tableFilter() {
     matches(row) {
       if (this.search) {
         const q = this.search.toLowerCase();
-        const searchable = [row.year, row.make, row.model, row.trim, row.dealer].join(' ');
+        const searchable = [row.year, row.make, row.model, row.trim, row.dealer, row.vin].join(' ');
         console.debug('[LotWatch] search:', q, '| searchable:', searchable, '| match:', searchable.includes(q));
         if (!searchable.includes(q)) return false;
       }
