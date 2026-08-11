@@ -95,10 +95,15 @@ def parse_url(
     request: Request,
     url: str = Form(...),
 ):
-    data = scrape_url(url)
+    data = scrape_url(url) or {}
+    if not data:
+        parse_status = "failed"
+    else:
+        filled = sum(1 for k in ("make", "model", "year", "current_price", "vin", "dealership_name") if data.get(k))
+        parse_status = "success" if filled >= 4 else "partial"
     return templates.TemplateResponse(
         request, "partials/form_fields.html",
-        {"data": data, "today": date.today()},
+        {"data": data, "today": date.today(), "parse_status": parse_status},
     )
 
 
