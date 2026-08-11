@@ -163,6 +163,26 @@ async def create_car(request: Request, db: Session = Depends(get_db)):
     return RedirectResponse(url="/cars", status_code=303)
 
 
+@router.post("/cars/refresh-all")
+def refresh_all_route(db: Session = Depends(get_db)):
+    cars = db.query(Car).filter(Car.is_deleted == False).all()
+    attempted = len(cars)
+    succeeded = 0
+    failed = 0
+    for car in cars:
+        try:
+            success = refresh_car(db, car)
+            if success:
+                succeeded += 1
+            else:
+                failed += 1
+        except Exception:
+            failed += 1
+    db.add(RefreshLog(cars_attempted=attempted, cars_succeeded=succeeded, cars_failed=failed))
+    db.commit()
+    return RedirectResponse(url="/cars", status_code=303)
+
+
 @router.post("/cars/{car_id}/refresh")
 def refresh_car_route(car_id: int, db: Session = Depends(get_db)):
     car = db.query(Car).filter(Car.id == car_id).first()
