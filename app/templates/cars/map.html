@@ -208,6 +208,7 @@
                 ${photo}
                 <div style="font-weight:600">${car.year || ''} ${car.make || ''} ${car.model || ''}</div>
                 ${car.trim ? `<div style="font-size:11px;color:#6b7280">${car.trim}</div>` : ''}
+                ${car.dealership_name ? `<div style="font-size:11px;color:#6b7280">${car.dealership_name}</div>` : ''}
                 <div style="margin-top:4px;font-weight:700;color:#1d4ed8">$${car.current_price ? Number(car.current_price).toLocaleString() : '—'}</div>
                 ${wasPrice}
                 ${car.mileage != null ? `<div style="font-size:11px;color:#6b7280;margin-top:2px">${Number(car.mileage).toLocaleString()} mi</div>` : ''}
