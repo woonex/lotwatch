@@ -71,6 +71,7 @@ def map_view(request: Request, db: Session = Depends(get_db)):
                 "features": c.features or {},
                 "max_price": max((ph.price for ph in c.price_history), default=c.current_price),
                 "mileage": c.mileage,
+                "dealership_name": c.dealership_name or "",
             }
             for c in cars
         ]
