@@ -1,9 +1,8 @@
 from datetime import date, datetime
 from sqlalchemy import (
     Boolean, DateTime, Date, Float, ForeignKey,
-    Integer, String, Text
+    Integer, JSON, String, Text
 )
-from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.database import Base
 
@@ -24,7 +23,7 @@ class Car(Base):
     model: Mapped[str | None] = mapped_column(String, nullable=True)
     trim: Mapped[str | None] = mapped_column(String, nullable=True)
     mileage: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    features: Mapped[dict] = mapped_column(JSONB, default=dict)
+    features: Mapped[dict] = mapped_column(JSON, default=dict)
     photo_url: Mapped[str | None] = mapped_column(Text, nullable=True)
     possibly_sold: Mapped[bool] = mapped_column(Boolean, default=False)
     is_deleted: Mapped[bool] = mapped_column(Boolean, default=False)
