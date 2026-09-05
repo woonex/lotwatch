@@ -70,6 +70,7 @@ def map_view(request: Request, db: Session = Depends(get_db)):
                 "possibly_sold": c.possibly_sold,
                 "features": c.features or {},
                 "max_price": max((ph.price for ph in c.price_history), default=c.current_price),
+                "mileage": c.mileage,
             }
             for c in cars
         ]
