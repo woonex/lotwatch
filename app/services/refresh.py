@@ -18,7 +18,11 @@ def refresh_car(db: Session, car: Car) -> None:
         return True
 
     new_price = result.get("current_price")
-    if new_price and new_price != car.current_price:
+    if new_price and car.current_price and new_price < car.current_price:
+        db.add(PriceHistory(car_id=car.id, price=new_price))
+        car.current_price = new_price
+    elif new_price and not car.current_price:
+        # No existing price — set it for the first time
         db.add(PriceHistory(car_id=car.id, price=new_price))
         car.current_price = new_price
 
